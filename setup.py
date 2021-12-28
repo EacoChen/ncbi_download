@@ -17,7 +17,7 @@ setup(
 
     url="https://github.com/EacoChen/ncbi_download",
     packages=find_packages(),
-    classifier = [
+    classifiers = [
                   'Development Status :: 3 - Alpha',
                   'Intended Audience :: Science/Research',
                   'Topic :: Scientific/Engineering :: Bio-Informatics',
