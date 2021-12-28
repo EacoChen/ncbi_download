@@ -3,7 +3,7 @@
 
 import os
 import io
-from EntrezDownloader import EntrezDownloader
+from .EntrezDownloader import EntrezDownloader
 from Bio import SeqIO
 from tqdm import tqdm
 # from glob import glob
@@ -13,7 +13,7 @@ import requests
 from multiprocessing import Pool
 import argparse
 
-from jobs import DownloadJob
+from .jobs import DownloadJob
 
 
 def parseArgs():
