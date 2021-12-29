@@ -1,0 +1,22 @@
+[ACCN]    Accession
+[MLWT]    Molecular Weight
+[ALL]     All Fields
+[ORGN]    Organism
+[AUTH]    Author
+[PACC]    Primary Accession
+[GPRJ]    BioProject
+[PROP]    Properties
+[BIOS]    BioSample
+[PROT]    Protein Name
+[ECNO]    EC/RN Number
+[SQID]    SeqID String
+[FKEY]    Feature key
+[SLEN]    Sequence Length
+[FILT]    Filter
+[SUBS]    Substance Name
+[GENE]    Gene Name
+[WORD]    Text Word
+[JOUR]    Journal
+[TITL]    Title
+[KYWD]    Keyword
+[UID]     UID
