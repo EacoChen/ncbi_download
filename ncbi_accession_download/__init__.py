@@ -1,1 +1,4 @@
-__version__ = '0.1.1'
+from .EntrezDownloader import EntrezDownloader
+from .jobs import DownloadJob
+
+__version__ = '0.2.0'
