@@ -12,10 +12,10 @@ import requests
 from multiprocessing import Pool
 import argparse
 import sys
-from ncbi_accession_download import EntrezDownloader
-from ncbi_accession_download import DownloadJob
-# from EntrezDownloader import EntrezDownloader
-# from jobs import DownloadJob
+# from ncbi_accession_download import EntrezDownloader
+# from ncbi_accession_download import DownloadJob
+from EntrezDownloader import EntrezDownloader
+from jobs import DownloadJob
 
 
 def parseArgs():
@@ -39,7 +39,9 @@ def parseArgs():
     parser.add_argument('-d', '--database', type=str, required=False, 
                         help='When uid is given or input is a str, --databse should be \'assembly\'/\'protein\'/\'nucleotide\',')
     parser.add_argument('--retmax', type=int, required=False, default=0,
-                        help='Searching mode max retrived sequences, default=[batch*2], maxmium 100,000')
+                        help='Searching mode max retrieving sequences, default=[batch*2], maxmium 100,000')
+    parser.add_argument('--dry', type=bool, required=False, default=False, 
+                        help='Download part not running, just find the uid.')
     return parser.parse_args()
 
 
@@ -107,7 +109,7 @@ def report_divide(_dict):
     for k, v in _dict.items():
         print(f'{k}: {len(v)-1}')
     logger.info('End reporting, the file including uids are stored at output/tmp.\n')
-    # return _dict[_database[0]][1:],_dict[_database[1]][1:],_dict[_database[2]][1:]
+    _dict = {k:v.remove('Head') for k,v in _dict.items()}
 
 
 def download_assem(_assem_uids, _output, _edl, args):
@@ -115,22 +117,17 @@ def download_assem(_assem_uids, _output, _edl, args):
 
     logger.info('genome sequences downloading...')
     logger.info('Getting the NCBI ftp address')
-    r_fetch, f_fetch = _edl.efetch(db='assembly', ids=_assem_uids, 
-                                    retmode='xml', retype='docsum')
+    r_fetch, f_fetch = _edl.efetch(db='assembly', ids=_assem_uids, retmode='xml', retype='docsum',
+                                    result_func = lambda x:re.findall(r'<FtpPath_GenBank>(ftp:.+)</FtpPath_GenBank>',x))
 
     logger.error('Falut number: %s\n%s' % (len(f_fetch), f_fetch)) if not len(f_fetch) == 0 else logger.info('No failed')
     if len(r_fetch) == 0:
         return 1
 
-    genbank_list = []
-    for result_fetch in r_fetch:
-        soup = Bp(result_fetch, 'xml')
-        genbank_list += (soup.find_all('FtpPath_GenBank'))
-
     url_list = []
-    for ftp_url in genbank_list:
-        gca_id = ftp_url.get_text().split('/')[-1]
-        down_url = f'{ftp_url.get_text()}/{gca_id}_genomic.fna.gz'.replace('ftp://','http://')
+    for ftp_url in r_fetch:
+        gca_id = ftp_url.split('/')[-1]
+        down_url = f'{ftp_url}/{gca_id}_genomic.fna.gz'.replace('ftp://','http://')
         url_list.append(down_url)
     
     output = f'{_output}/assembly'
@@ -224,6 +221,10 @@ def merge_dict(dict1,dict2):
 def download_part(sorted_dict, edl, args):
     logger = logging.getLogger('ncbi-accession-download')
 
+    if args.dry:
+        logger.INFO('DRY RUN. exiting...')
+        sys.exit()
+
     for db,uids in sorted_dict.items():
         if db != 'lost':
             if db == 'assembly':
@@ -232,7 +233,7 @@ def download_part(sorted_dict, edl, args):
                 state = download_edl(uids,db,args.output,edl)
 
             if state:
-                logger.info(f'{db} download Failed')
+                logger.error(f'{db} download Failed')
             else:
                 logger.info(f'{db} download Successful')
 
@@ -302,9 +303,9 @@ def download_spe(args,database):
     else:
         logger.warning(f'Find {result_count} records')
         sys.exit()
-    
+
     if int(result_count) > retmax:
-        logger.warning(f'The retriving record {retmax} is samller than records, the result maybe incomplete')
+        logger.warning(f'The retrieving record {retmax} is samller than records, the result maybe incomplete')
 
     uids = re.findall(r'<Id>([0-9]+)', r_search[0][1])
     
