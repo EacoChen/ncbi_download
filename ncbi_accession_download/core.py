@@ -310,7 +310,8 @@ def download_spe(args,database):
     uids = re.findall(r'<Id>([0-9]+)', r_search[0][1])
     
     sorted_dict = {args.database:uids}
-    with open(f'{tmp}/uid_{args.database}_{infile}.tsv', 'w') as f:
+    name = infile.replace(" ","_").replace(":","-").replace("[","(").replace("]",")")
+    with open(f'{tmp}/uid_{args.database}_{name}.tsv', 'w') as f:
         f.write('\n'.join(uids))
 
     download_part(sorted_dict, edl, args)
