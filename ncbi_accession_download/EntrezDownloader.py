@@ -82,6 +82,15 @@ class ResultCollector:
                 self.pbar.update(len(ids))
 
 
+class ResultCollectorSearch(ResultCollector):
+
+    def add_results(self, results, ids):
+        with self.lock:
+            self.results += results
+            if self.pbar:
+                self.pbar.update(len(ids))
+
+
 class EntrezDownloader:
 
     def __init__(self, num_threads=30, batch_size=10, email=None, api_key=None, pbar=False):
@@ -129,9 +138,9 @@ class EntrezDownloader:
                     if emode=='esearch' and ' OR ' not in ids:
                         result_collector.add_results(list(zip([_.strip() 
                                                                for _ in ids.split(' OR ')], 
-                                                               results)))
+                                                               results)), ids.split(' OR '))
                     else:
-                        result_collector.add_results(results)
+                        result_collector.add_results(results,ids.split(' OR '))
                     error = None
                     break
                 else:
@@ -370,7 +379,7 @@ class EntrezDownloader:
             ids = [ids]
         if self.pbar:
             from tqdm import tqdm
-            results = ResultCollector(
+            results = ResultCollectorSearch(
                 pbar=tqdm(total=len(ids), unit='records'))
         else:
             results = ResultCollector()
