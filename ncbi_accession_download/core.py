@@ -12,10 +12,10 @@ import requests
 from multiprocessing import Pool
 import argparse
 import sys
-# from ncbi_accession_download import EntrezDownloader
-# from ncbi_accession_download import DownloadJob
-from EntrezDownloader import EntrezDownloader
-from jobs import DownloadJob
+from ncbi_accession_download import EntrezDownloader
+from ncbi_accession_download import DownloadJob
+# from EntrezDownloader import EntrezDownloader
+# from jobs import DownloadJob
 
 
 def parseArgs():
