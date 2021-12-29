@@ -360,12 +360,14 @@ class EntrezDownloader:
             results.pbar.close()
         return results.results, results.failed
 
-    def esearch(self, db, ids, batch_size=None,result_func=lambda x: [x], **kwargs):
+    def esearch(self, db, ids, retmax=0, batch_size=None,result_func=lambda x: [x], **kwargs):
         """Interface to the efetch database.
         result_func: A function to be applied to the response. Must return an iterable.
         """
         if isinstance(ids,str) and ',' in ids:
             ids = [_.strip() for _ in ids.split(',') if _]
+        elif isinstance(ids,str):
+            ids = [ids]
         if self.pbar:
             from tqdm import tqdm
             results = ResultCollector(
@@ -376,6 +378,8 @@ class EntrezDownloader:
         executor = ThreadPoolExecutor(max_workers=self.num_threads)
         if not batch_size:
             batch_size = self.batch_size
+        if not retmax:
+            retmax = self.batch_size*2
         fs = []
         for start in range(0, len(ids), batch_size):
             num = len(ids)-start
@@ -386,7 +390,7 @@ class EntrezDownloader:
                                 result_collector=results,
                                 result_func=result_func,
                                 emode='esearch',
-                                RetMax= self.batch_size*2,
+                                RetMax= retmax,
                                 **kwargs)
             fs.append(f)
 
