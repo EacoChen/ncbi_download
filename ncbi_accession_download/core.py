@@ -222,7 +222,7 @@ def download_part(sorted_dict, edl, args):
     logger = logging.getLogger('ncbi-accession-download')
 
     if args.dry:
-        logger.INFO('DRY RUN. exiting...')
+        logger.info('DRY RUN. exiting...')
         sys.exit()
 
     for db,uids in sorted_dict.items():
