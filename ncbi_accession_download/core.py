@@ -258,7 +258,9 @@ def download_acc(args,database):
         sorted_dict = get_uid(acc_ids, database, edl)
 
         if len(sorted_dict['lost']) > 0:
-            logger.warning('\nsetting batch size to 1 for lost accession number')
+            logger.warning(f"There are {len(sorted_dict['lost'])} accession number not found in database.")
+            logger.info('setting batch size to 1 for lost accession number')
+
             _edl = edl_config(args.email, args.api,
                             args.parallel, 1, args.progress_bar)
             more_sorted = get_uid(sorted_dict['lost'][1:],database,_edl)
