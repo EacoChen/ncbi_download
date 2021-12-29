@@ -40,7 +40,7 @@ def parseArgs():
                         help='When uid is given or input is a str, --databse should be \'assembly\'/\'protein\'/\'nucleotide\',')
     parser.add_argument('--retmax', type=int, required=False, default=0,
                         help='Searching mode max retrieving sequences, default=[batch*2], maxmium 100,000')
-    parser.add_argument('--dry', action=argparse.BooleanOptionalAction, default= False,
+    parser.add_argument('--dry', action='store_true',
                         help='Download part not running, just find the uid.')
     return parser.parse_args()
 
