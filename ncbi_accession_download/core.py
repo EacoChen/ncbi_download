@@ -34,7 +34,7 @@ def parseArgs():
                         help='The number of IDs to fetch per request')
     parser.add_argument('-P', '--progress-bar', dest='progress_bar', type=bool, required=False, default=True,
                         help='Enables a progress bar, requires tqdm package')
-    parser.add_argument('-u', '--uid', type=bool, required=False, default=False,
+    parser.add_argument('-u', '--uid', action='store_true',
                         help='When input file is a uid list.')
     parser.add_argument('-d', '--database', type=str, required=False, 
                         help='When uid is given or input is a str, --databse should be \'assembly\'/\'protein\'/\'nucleotide\',')
