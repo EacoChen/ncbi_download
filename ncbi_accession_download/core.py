@@ -3,23 +3,25 @@
 
 import os
 import io
-from .EntrezDownloader import EntrezDownloader
 from Bio import SeqIO
 from tqdm import tqdm
-# from glob import glob
-# import re
+import logging
+import re
 from bs4 import BeautifulSoup as Bp
 import requests
 from multiprocessing import Pool
 import argparse
-
-from .jobs import DownloadJob
+import sys
+from ncbi_accession_download import EntrezDownloader
+from ncbi_accession_download import DownloadJob
+# from EntrezDownloader import EntrezDownloader
+# from jobs import DownloadJob
 
 
 def parseArgs():
     parser = argparse.ArgumentParser(description='Parallel downloading genome/nucleotide/protien sequences from NCBI using Entrez.')
 
-    parser.add_argument('-i', '--input', type = str, required=True, default='test/' ,
+    parser.add_argument('-i', '--input', type = str, required=True, 
                         help = 'List file with accession number seperated by \\n.')
     parser.add_argument('-o', '--output', type = str, required=True, help = 'Downloaded files saved directory.')
     parser.add_argument('-e', '--email', type = str, required=False, default = 'eacochen@163.com' , 
@@ -31,8 +33,13 @@ def parseArgs():
     parser.add_argument('-b', '--batch', type=int, required=False, default = 20, 
                         help='The number of IDs to fetch per request')
     parser.add_argument('-P', '--progress-bar', dest='progress_bar', type=bool, required=False, default=True,
-                        help = 'Enables a progress bar, requires tqdm package')
-
+                        help='Enables a progress bar, requires tqdm package')
+    parser.add_argument('-u', '--uid', type=bool, required=False, default=False,
+                        help='When input file is a uid list.')
+    parser.add_argument('-d', '--database', type=str, required=False, 
+                        help='When uid is given or input is a str, --databse should be \'assembly\'/\'protein\'/\'nucleotide\',')
+    parser.add_argument('--retmax', type=int, required=False, default=0,
+                        help='Searching mode max retrived sequences, default=[batch*2], maxmium 100,000')
     return parser.parse_args()
 
 
@@ -49,8 +56,24 @@ def edl_config(user_email,api,parallel,batch,progress_bar):
     return edl
 
 
+def config(args):
+    infile = args.input
+    output = args.output
+
+    tmp = f'{output}/tmp'
+    if not os.path.exists(tmp):
+        os.makedirs(tmp)
+
+    edl = edl_config(args.email, args.api,
+                     args.parallel, args.batch, args.progress_bar)
+    
+    return infile, tmp, edl
+
+
 def get_uid(ids, _database, edl):
-    print('Sorting the input accession number to diffenent database and changing it to uid...')
+
+    logger = logging.getLogger('ncbi-accession-download')
+    logger.info('Sorting the input accession number to diffenent database and changing it to uid...')
     
     ids_dict = {}
     for _db in _database:
@@ -78,20 +101,24 @@ def get_uid(ids, _database, edl):
 
 
 def report_divide(_dict):
-    print('\nReporting the download sequence number in each database...')
+    logger = logging.getLogger('ncbi-accession-download')
+
+    logger.info('\nReporting the download sequence number in each database...')
     for k, v in _dict.items():
         print(f'{k}: {len(v)-1}')
-    print('End reporting, the file including uids are stored at output/tmp.\n')
+    logger.info('End reporting, the file including uids are stored at output/tmp.\n')
     # return _dict[_database[0]][1:],_dict[_database[1]][1:],_dict[_database[2]][1:]
 
 
 def download_assem(_assem_uids, _output, _edl, args):
-    print('genome sequences downloading...')
-    print('Getting the NCBI ftp address')
+    logger = logging.getLogger('ncbi-accession-download')
+
+    logger.info('genome sequences downloading...')
+    logger.info('Getting the NCBI ftp address')
     r_fetch, f_fetch = _edl.efetch(db='assembly', ids=_assem_uids, 
                                     retmode='xml', retype='docsum')
 
-    print('Falut number: %s\n%s' % (len(f_fetch), f_fetch)) if not len(f_fetch) == 0 else print('No failed')
+    logger.error('Falut number: %s\n%s' % (len(f_fetch), f_fetch)) if not len(f_fetch) == 0 else logger.info('No failed')
     if len(r_fetch) == 0:
         return 1
 
@@ -130,22 +157,24 @@ def download_assem(_assem_uids, _output, _edl, args):
                     _jobs=jobs
                 [_.get(0xFFFF) for _ in _jobs]
             except KeyboardInterrupt:
-                print("Interrupted by user")
+                logger.debug("Interrupted by user")
                 return 1
     except requests.exceptions.ConnectionError as err:
-        print('Download from NCBI failed: %r', err)
+        logger.error('Download from NCBI failed: %r', err)
         return 75
     return 0
     
 
 def worker(job):
+    logger = logging.getLogger('ncbi-accession-download')
+
     try:
         req = requests.get(job.full_url,stream=True)
         with open(f'{job.output}/{job.filename}','wb') as handle:
             for chunk in req.iter_content(4096):
                 handle.write(chunk)
     except KeyboardInterrupt:
-        print("Ignoring keyboard interrupt.")
+        logger.debug("Ignoring keyboard interrupt.")
 
     return True
 
@@ -161,22 +190,24 @@ def downloadjob_creator(url, output):
 
 
 def download_edl(uids,db,output,edl):
-    print(f'{db} sequences downloading...')
+    logger = logging.getLogger('ncbi-accession-download')
+
+    logger.info(f'{db} sequences downloading...')
     try:
         r_fetch, f_fetch = edl.efetch(db=db, ids=uids, retype='fasta', retmode='text',
                                   result_func=lambda x: [SeqIO.read(io.StringIO(f), 'fasta')
                                                          for f in x.split('\n\n')[:-1]])
     except KeyboardInterrupt:
-        print("Interrupted by user")
+        logger.error("Interrupted by user")
         return 1
 
-    print('Falut number: %s\n%s' % (len(f_fetch), f_fetch)) if not len(f_fetch) == 0 else print('No failed')
+    logger.error('Falut number: %s\n%s' % (len(f_fetch), f_fetch)) if not len(f_fetch) == 0 else logger.info('No failed')
     if len(r_fetch) == 0:
         return 1
     
     outfile = f'{output}/{db}.fasta'
     count = SeqIO.write(r_fetch,outfile,'fasta')
-    print(f"{count} sequences have saved to {outfile}")
+    logger.info(f"{count} sequences have saved to {outfile}")
     return 0
 
 
@@ -190,57 +221,113 @@ def merge_dict(dict1,dict2):
     return new_dict
 
 
-def main():
-    args = parseArgs()
+def download_part(sorted_dict, edl, args):
+    logger = logging.getLogger('ncbi-accession-download')
 
-    infile = args.input
-    output = args.output
-    parallel = args.parallel
+    for db,uids in sorted_dict.items():
+        if db != 'lost':
+            if db == 'assembly':
+                state = download_assem(uids,args.output,edl,args)
+            else:
+                state = download_edl(uids,db,args.output,edl)
 
-    tmp = f'{output}/tmp'
-    if not os.path.exists(tmp):
-        os.makedirs(tmp)
+            if state:
+                logger.info(f'{db} download Failed')
+            else:
+                logger.info(f'{db} download Successful')
 
-    edl = edl_config(args.email, args.api,
-                     parallel, args.batch, args.progress_bar)
+
+def download_acc(args,database):
+    logger = logging.getLogger('ncbi-accession-download')
+
+    infile, tmp, edl = config(args)
     
     acc_ids = open(infile).read().split('\n')
     # delete the last empty line
     if not acc_ids[-1]:
         acc_ids = acc_ids[:-1]
     
-    # assembly must be at the FIRST position, or some MAG will be more when it goes nucleotide protein database
-    database = ['assembly', 'nucleotide', 'protein']
-
-    # initialize sorted_input
-    sorted_dict = get_uid(acc_ids, database, edl)
-
-    if len(sorted_dict['lost']) > 0:
-        print('\nsetting batch size to 1 for lost accession number')
-        _edl = edl_config(args.email, args.api,
-                         parallel, 1, args.progress_bar)
-        more_sorted = get_uid(sorted_dict['lost'][1:],database,_edl)
-
-        print('merging to a new uid dictory')
-        sorted_dict = merge_dict(sorted_dict,more_sorted)
+    if args.uid:
+        if args.database in database:
+            sorted_dict = {args.database:acc_ids}
+        else:
+            sys.exit("When the uid list as an inpufile, \'--database\' should be gaven correctly.\n \"nad --help\".")
     
-    for k,v in sorted_dict.items():
-        with open(f'{tmp}/uid_{k}.tsv', 'w') as f:
-            f.write('\n'.join(v))
+    else:
+        # initialize sorted_input
+        sorted_dict = get_uid(acc_ids, database, edl)
+
+        if len(sorted_dict['lost']) > 0:
+            logger.warning('\nsetting batch size to 1 for lost accession number')
+            _edl = edl_config(args.email, args.api,
+                            args.parallel, 1, args.progress_bar)
+            more_sorted = get_uid(sorted_dict['lost'][1:],database,_edl)
+
+            logger.warning('merging to a new uid dictory')
+            sorted_dict = merge_dict(sorted_dict,more_sorted)
+        
+        for k,v in sorted_dict.items():
+            with open(f'{tmp}/uid_{k}.tsv', 'w') as f:
+                f.write('\n'.join(v))
     
     report_divide(sorted_dict)
 
-    for db,uids in sorted_dict.items():
-        if db != 'lost':
-            if db == 'assembly':
-                state = download_assem(uids,output,edl,args)
-            else:
-                state = download_edl(uids,db,output,edl)
+    download_part(sorted_dict, edl, args)
 
-            if state:
-                print(f'{db} download Failed')
-            else:
-                print(f'{db} download Successful')
+
+def download_spe(args,database):
+    logger = logging.getLogger('ncbi-accession-download')
+
+    infile, tmp, edl = config(args)
+
+    if not args.database in database:
+        sys.exit("When the uid list as an inpufile, \'--database\' should be gaven correctly.\n Check \"nad --help\".")
+
+    if not args.retmax:
+        retmax = args.batch * 2
+    else:
+        retmax = args.retmax
+    if retmax > 100000:
+        retmax = 100000
+
+    logger.info(f'Searching the term \"{infile}\"')
+    r_search, f_search = edl.esearch(args.database,infile,retmax)
+
+    result_count = re.search(r'<Count>([0-9]+)', r_search[0][1])[1]
+
+    if result_count:
+        logger.info(f'Find {result_count} records')
+    else:
+        logger.warning(f'Find {result_count} records')
+        sys.exit()
+    
+    if int(result_count) > retmax:
+        logger.warning(f'The retriving record {retmax} is samller than records, the result maybe incomplete')
+
+    uids = re.findall(r'<Id>([0-9]+)', r_search[0][1])
+    
+    sorted_dict = {args.database:uids}
+    with open(f'{tmp}/uid_{args.database}_{infile}.tsv', 'w') as f:
+        f.write('\n'.join(uids))
+
+    download_part(sorted_dict, edl, args)
+
+
+def main():
+    args = parseArgs()
+
+    infile = args.input
+
+    # assembly must be at the FIRST position, or some MAG will be more when it goes nucleotide protein database
+    database = ['assembly', 'nucleotide', 'protein']
+
+    logger = logging.getLogger("ncbi-genome-download")
+    logging.basicConfig(format='%(levelname)s: %(message)s', level=logging.INFO)
+
+    if os.path.isfile(infile):
+        download_acc(args,database)
+    elif '/' not in infile and not os.path.isdir(infile):
+        download_spe(args,database)
 
 
 if __name__ == '__main__':
