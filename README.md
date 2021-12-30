@@ -45,7 +45,7 @@ If you meet some question when in higher version, please let me know.
 
 You can clone this repository from github and go to directory
 ```
-git clone https://github.com/kblin/ncbi-genome-download.git
+git clone https://github.com/EacoChen/ncbi_download.git
 cd ncbi_download
 ```
 
