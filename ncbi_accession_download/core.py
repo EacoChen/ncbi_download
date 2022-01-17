@@ -3,6 +3,7 @@
 
 import os
 import io
+from xml.etree.ElementInclude import default_loader
 from Bio import SeqIO,Entrez
 from tqdm import tqdm
 import logging
@@ -12,10 +13,28 @@ import requests
 from multiprocessing import Pool
 import argparse
 import sys
+from collections import OrderedDict
 from ncbi_accession_download import EntrezDownloader
 from ncbi_accession_download import DownloadJob
 # from EntrezDownloader import EntrezDownloader
 # from jobs import DownloadJob
+
+
+_FORMATS = OrderedDict([
+        ('genbank', '_genomic.gbff.gz'),
+        ('fasta', '_genomic.fna.gz'),
+        ('rm', '_rm.out.gz'),
+        ('features', '_feature_table.txt.gz'),
+        ('gff', '_genomic.gff.gz'),
+        ('protein-fasta', '_protein.faa.gz'),
+        ('genpept', '_protein.gpff.gz'),
+        ('wgs', '_wgsmaster.gbff.gz'),
+        ('cds-fasta', '_cds_from_genomic.fna.gz'),
+        ('rna-fna', '_rna.fna.gz'),
+        ('rna-fasta', '_rna_from_genomic.fna.gz'),
+        ('assembly-report', '_assembly_report.txt'),
+        ('assembly-stats', '_assembly_stats.txt'),
+    ])
 
 
 def parseArgs():
@@ -42,6 +61,8 @@ def parseArgs():
                         help='Searching mode max retrieving sequences, default=[batch*2], maxmium 100,000')
     parser.add_argument('--dry', action='store_true',
                         help='Download part not running, just find the uid.')
+    parser.add_argument('-f', '--format', type=str, required=False, default='all', 
+                        help='genome download format, multi format sepearte with comma')
     return parser.parse_args()
 
 
@@ -124,13 +145,22 @@ def download_assem(_assem_uids, _output, _edl, args):
     if len(r_fetch) == 0:
         return 1
 
-    url_list = []
+    url_dict = {}
     for ftp_url in r_fetch:
         gca_id = ftp_url.split('/')[-1]
-        down_url = f'{ftp_url}/{gca_id}_genomic.fna.gz'.replace('ftp://','http://')
-        url_list.append(down_url)
+        if args.format == 'all':
+            for fmt in _FORMATS:
+                down_url = f'{ftp_url}/{gca_id}{_FORMATS[fmt]}'.replace('ftp://','http://')
+                url_dict[down_url] = gca_id
+        else:
+            for fmt in args.format.split(','):
+                if fmt not in _FORMATS:
+                    sys.exit('The format you given is not in database')
+                else:
+                    down_url = f'{ftp_url}/{gca_id}{_FORMATS[fmt]}'.replace('ftp://','http://')
+                    url_dict[down_url] = gca_id
     
-    output = f'{_output}/assembly'
+    output = f'{_output}/genome'
     if not os.path.exists(output):
         os.makedirs(output)
 
@@ -138,7 +168,7 @@ def download_assem(_assem_uids, _output, _edl, args):
     try:
         with Pool(processes=args.parallel) as pool:
             dl_jobs = pool.imap(
-                downloadjob_creator_caller, [(url, output) for url in url_list]
+                downloadjob_creator_caller, [(url, f"{output}/{gca_id}") for url,gca_id in url_dict.items()]
             )
 
             for index,create_dl_job in enumerate(dl_jobs):
@@ -167,6 +197,8 @@ def worker(job):
 
     try:
         req = requests.get(job.full_url,stream=True)
+        if not os.path.exists(job.output):
+            os.makedirs(job.output)
         with open(f'{job.output}/{job.filename}','wb') as handle:
             for chunk in req.iter_content(4096):
                 handle.write(chunk)
