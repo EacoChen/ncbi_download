@@ -3,7 +3,7 @@
 
 import os
 import io
-from Bio import SeqIO
+from Bio import SeqIO,Entrez
 from tqdm import tqdm
 import logging
 import re
@@ -323,7 +323,24 @@ def main():
     infile = args.input
 
     # assembly must be at the FIRST position, or some MAG will be more when it goes nucleotide protein database
+    # up to 2022.01.17 the database are as following:
+    # all_database = ['pubmed', 'protein', 'nuccore', 'ipg', 'nucleotide', 'structure', 'genome', 
+    #             'annotinfo', 'assembly', 'bioproject', 'biosample', 'blastdbinfo', 'books', 
+    #             'cdd', 'clinvar', 'gap', 'gapplus', 'grasp', 'dbvar', 'gene', 'gds', 'geoprofiles', 
+    #             'homologene', 'medgen', 'mesh', 'ncbisearch', 'nlmcatalog', 'omim', 'orgtrack', 
+    #             'pmc', 'popset', 'proteinclusters', 'pcassay', 'protfam', 'biosystems', 
+    #             'pccompound', 'pcsubstance', 'seqannot', 'snp', 'sra', 'taxonomy', 'biocollections', 'gtr']
+    Entrez.email = args.email
+    all_database = Entrez.read(Entrez.einfo())["DbList"]
+
     database = ['assembly', 'nucleotide', 'protein']
+    
+    if args.database in all_database:
+        database.append(args.database)
+    elif args.database:
+        sys.exit(f'The -d database you given is not in ncbi entrez databases\n {",".join(all_database)}')
+    else:
+        pass
 
     logger = logging.getLogger("ncbi-genome-download")
     logging.basicConfig(format='%(levelname)s: %(message)s', level=logging.INFO)
