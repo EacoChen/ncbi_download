@@ -14,10 +14,10 @@ from multiprocessing import Pool
 import argparse
 import sys
 from collections import OrderedDict
-# from ncbi_accession_download import EntrezDownloader
-# from ncbi_accession_download import DownloadJob
-from EntrezDownloader import EntrezDownloader
-from jobs import DownloadJob
+from ncbi_accession_download import EntrezDownloader
+from ncbi_accession_download import DownloadJob
+# from EntrezDownloader import EntrezDownloader
+# from jobs import DownloadJob
 
 
 _FORMATS = OrderedDict([
