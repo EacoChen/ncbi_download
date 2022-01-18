@@ -216,9 +216,10 @@ def worker(job):
 
     try:
         req = requests.get(job.full_url,stream=True)
-        with open(f'{job.output}/{job.filename}','wb') as handle:
-            for chunk in req.iter_content(4096):
-                handle.write(chunk)
+        if not req.status_code == 404:
+            with open(f'{job.output}/{job.filename}','wb') as handle:
+                for chunk in req.iter_content(4096):
+                    handle.write(chunk)
     except KeyboardInterrupt:
         logger.debug("Ignoring keyboard interrupt.")
 
