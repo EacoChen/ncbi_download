@@ -16,8 +16,6 @@ import sys
 from collections import OrderedDict
 from ncbi_accession_download import EntrezDownloader
 from ncbi_accession_download import DownloadJob
-# from EntrezDownloader import EntrezDownloader
-# from jobs import DownloadJob
 
 
 _FORMATS = OrderedDict([
@@ -62,7 +60,10 @@ def parseArgs():
     parser.add_argument('--dry', action='store_true',
                         help='Download part not running, just find the uid.')
     parser.add_argument('-f', '--format', type=str, required=False, default='all', 
-                        help='genome download format, multi format sepearte with comma')
+                        help='Genome download format, multi format sepearte with comma')
+    parser.add_argument('--retries', type = int, required = False, default=3,
+                        help='Retry download time, if download failed. Default: 3')
+
     return parser.parse_args()
 
 
@@ -133,6 +134,18 @@ def report_divide(_dict):
     _dict = {k:v.remove('Head') for k,v in _dict.items()}
 
 
+def download_genome(_uids, _output, _edl, args):
+    logger = logging.getLogger('ncbi-accession-download')
+
+    logger.info('Convert genome ids to assembly ids.')
+    r_link, f_link = _edl.elink(dbfrom='genome', db='assembly', ids=_uids,
+                                result_func= lambda x:re.findall(r'\t\t\t\t<Id>([0-9]+)</Id>',x))
+    
+    logger.info(f'There are {len(r_link)} assembly records in this genome.')
+
+    return download_assem(r_link, _output, _edl, args)
+
+
 def download_assem(_assem_uids, _output, _edl, args):
     logger = logging.getLogger('ncbi-accession-download')
 
@@ -145,9 +158,17 @@ def download_assem(_assem_uids, _output, _edl, args):
     if len(r_fetch) == 0:
         return 1
 
+    output = f'{_output}/{args.database}'
+    if not os.path.exists(output):
+        os.makedirs(output)
+
     url_dict = {}
     for ftp_url in r_fetch:
         gca_id = ftp_url.split('/')[-1]
+
+        if not os.path.exists(f"{output}/{gca_id}"):
+            os.makedirs(f"{output}/{gca_id}")
+
         if args.format == 'all':
             for fmt in _FORMATS:
                 down_url = f'{ftp_url}/{gca_id}{_FORMATS[fmt]}'.replace('ftp://','http://')
@@ -157,16 +178,10 @@ def download_assem(_assem_uids, _output, _edl, args):
                 if fmt not in _FORMATS:
                     sys.exit('The format you given is not in database')
                 else:
+                    if os.path.exists(f"{output}/{gca_id}/{gca_id}{_FORMATS[fmt]}"):
+                        continue
                     down_url = f'{ftp_url}/{gca_id}{_FORMATS[fmt]}'.replace('ftp://','http://')
                     url_dict[down_url] = gca_id
-    
-    output = f'{_output}/genome'
-    if not os.path.exists(output):
-        os.makedirs(output)
-    
-    for url,gca_id in url_dict.items():
-        if not os.path.exists(f"{output}/{gca_id}"):
-            os.makedirs(f"{output}/{gca_id}")
 
     download_jobs = []
     try:
@@ -201,9 +216,10 @@ def worker(job):
 
     try:
         req = requests.get(job.full_url,stream=True)
-        with open(f'{job.output}/{job.filename}','wb') as handle:
-            for chunk in req.iter_content(4096):
-                handle.write(chunk)
+        if not req.status_code == 404:
+            with open(f'{job.output}/{job.filename}','wb') as handle:
+                for chunk in req.iter_content(4096):
+                    handle.write(chunk)
     except KeyboardInterrupt:
         logger.debug("Ignoring keyboard interrupt.")
 
@@ -263,6 +279,8 @@ def download_part(sorted_dict, edl, args):
         if db != 'lost':
             if db == 'assembly':
                 state = download_assem(uids,args.output,edl,args)
+            elif db == 'genome':
+                state = download_genome(uids,args.output,edl,args)
             else:
                 state = download_edl(uids,db,args.output,edl)
 
@@ -270,6 +288,8 @@ def download_part(sorted_dict, edl, args):
                 logger.error(f'{db} download Failed')
             else:
                 logger.info(f'{db} download Successful')
+    
+    return state
 
 
 def download_acc(args,database):
@@ -309,16 +329,13 @@ def download_acc(args,database):
     
     report_divide(sorted_dict)
 
-    download_part(sorted_dict, edl, args)
+    return download_part(sorted_dict, edl, args)
 
 
 def download_spe(args,database):
     logger = logging.getLogger('ncbi-accession-download')
 
     infile, tmp, edl = config(args)
-
-    if not args.database in database:
-        sys.exit("When the uid list as an inpufile, \'--database\' should be gaven correctly.\n Check \"nad --help\".")
 
     if not args.retmax:
         retmax = args.batch * 2
@@ -328,7 +345,7 @@ def download_spe(args,database):
         retmax = 100000
 
     logger.info(f'Searching the term \"{infile}\"')
-    r_search, f_search = edl.esearch(args.database,infile,retmax)
+    r_search, f_search = edl.esearch(database, infile)
 
     result_count = re.search(r'<Count>([0-9]+)', r_search[0][1])[1]
 
@@ -343,12 +360,12 @@ def download_spe(args,database):
 
     uids = re.findall(r'<Id>([0-9]+)', r_search[0][1])
     
-    sorted_dict = {args.database:uids}
+    sorted_dict = {database:uids}
     name = infile.replace(" ","_").replace(":","-").replace("[","(").replace("]",")")
-    with open(f'{tmp}/uid_{args.database}_{name}.tsv', 'w') as f:
+    with open(f'{tmp}/uid_{database}_{name}.tsv', 'w') as f:
         f.write('\n'.join(uids))
 
-    download_part(sorted_dict, edl, args)
+    return download_part(sorted_dict, edl, args)
 
 
 def main():
@@ -369,7 +386,8 @@ def main():
 
     database = ['assembly', 'nucleotide', 'protein']
     
-    if args.database in all_database:
+    args.database = args.database.lower()
+    if args.database in all_database and ',' not in args.database:
         database.append(args.database)
     elif args.database:
         sys.exit(f'The -d database you given is not in ncbi entrez databases\n {",".join(all_database)}')
@@ -379,10 +397,22 @@ def main():
     logger = logging.getLogger("ncbi-genome-download")
     logging.basicConfig(format='%(levelname)s: %(message)s', level=logging.INFO)
 
+    attempt = 0
+
     if os.path.isfile(infile):
-        download_acc(args,database)
+        state = download_acc(args,database)
     elif '/' not in infile and not os.path.isdir(infile):
-        download_spe(args,database)
+        state = download_spe(args,args.database)
+
+    while state == 75 and attempt < args.retries:
+        attempt += 1
+        logger.error(f"Download failed due to connection error. Retries so far {attempt}")
+        if os.path.isfile(infile):
+            state = download_acc(args,database)
+        elif '/' not in infile and not os.path.isdir(infile):
+            state = download_spe(args,args.database)
+
+    return state
 
 
 if __name__ == '__main__':
