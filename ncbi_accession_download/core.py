@@ -14,10 +14,10 @@ from multiprocessing import Pool
 import argparse
 import sys
 from collections import OrderedDict
-from ncbi_accession_download import EntrezDownloader
-from ncbi_accession_download import DownloadJob
-# from EntrezDownloader import EntrezDownloader
-# from jobs import DownloadJob
+# from ncbi_accession_download import EntrezDownloader
+# from ncbi_accession_download import DownloadJob
+from EntrezDownloader import EntrezDownloader
+from jobs import DownloadJob
 
 
 _FORMATS = OrderedDict([
@@ -163,6 +163,10 @@ def download_assem(_assem_uids, _output, _edl, args):
     output = f'{_output}/genome'
     if not os.path.exists(output):
         os.makedirs(output)
+    
+    for url,gca_id in url_dict.items():
+        if not os.path.exists(f"{output}/{gca_id}"):
+            os.makedirs(f"{output}/{gca_id}")
 
     download_jobs = []
     try:
@@ -197,8 +201,6 @@ def worker(job):
 
     try:
         req = requests.get(job.full_url,stream=True)
-        if not os.path.exists(job.output):
-            os.makedirs(job.output)
         with open(f'{job.output}/{job.filename}','wb') as handle:
             for chunk in req.iter_content(4096):
                 handle.write(chunk)
