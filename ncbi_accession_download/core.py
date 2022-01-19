@@ -183,6 +183,13 @@ def download_assem(_assem_uids, _output, _edl, args):
                     down_url = f'{ftp_url}/{gca_id}{_FORMATS[fmt]}'.replace('ftp://','http://')
                     url_dict[down_url] = gca_id
 
+    if len(url_dict) == 0:
+        logger.info('All download candidate have already exists.')
+        return 0
+    elif len(url_dict) < len(r_fetch*len(args.format.split(','))):
+        logger.info('Some files already exists. {len(url_dict)} url will be downloaded')
+
+    logger.info('Some file will be filtered, if not exists in ncbi database.')
     download_jobs = []
     try:
         with Pool(processes=args.parallel) as pool:
