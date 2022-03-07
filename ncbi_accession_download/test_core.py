@@ -304,7 +304,7 @@ def download_acc(args,database):
     
     if args.uid:
         if args.database in database:
-            sorted_dict = {args.database:acc_ids}
+            sorted_dict = {args.database:['Head']+acc_ids}
         else:
             sys.exit("When the uid list as an inpufile, \'--database\' should be gaven correctly.\n \"nad --help\".")
     
