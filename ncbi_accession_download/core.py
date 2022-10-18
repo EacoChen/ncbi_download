@@ -178,7 +178,7 @@ def download_assem(_assem_uids, _output, _edl, args):
                 if fmt not in _FORMATS:
                     sys.exit('The format you given is not in database')
                 else:
-                    if os.path.exists(f"{output}/{gca_id}/{gca_id}{_FORMATS[fmt]}"):
+                    if os.path.exists(f"{output}/{gca_id[:15]}/{gca_id}{_FORMATS[fmt]}"):
                         continue
                     down_url = f'{ftp_url}/{gca_id}{_FORMATS[fmt]}'.replace('ftp://','http://')
                     url_dict[down_url] = gca_id
@@ -194,7 +194,7 @@ def download_assem(_assem_uids, _output, _edl, args):
     try:
         with Pool(processes=args.parallel) as pool:
             dl_jobs = pool.imap(
-                downloadjob_creator_caller, [(url, f"{output}/{gca_id}") for url,gca_id in url_dict.items()]
+                downloadjob_creator_caller, [(url, f"{output}/{gca_id[:15]}") for url,gca_id in url_dict.items()]
             )
 
             for index,create_dl_job in enumerate(dl_jobs):
