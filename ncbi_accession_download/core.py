@@ -62,7 +62,7 @@ def parseArgs():
                         help='Retry download time, if download failed. Default: 3')
     parser.add_argument('--dry', action='store_true',
                         help='Download part not running, just find the uid.')
-    parser.add_argument('-u', action='store_true',
+    parser.add_argument('-u', '--uid', action='store_true',
                         help='When input file is a uid list.')
     
 
