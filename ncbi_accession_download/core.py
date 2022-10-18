@@ -52,7 +52,7 @@ def parseArgs():
                         help='The number of IDs to fetch per request')
     parser.add_argument('-P', '--progress-bar', dest='progress_bar', type=bool, required=False, default=True,
                         help='Enables a progress bar, requires tqdm package')
-    parser.add_argument('-u', '--uid', action='store_true',
+    parser.add_argument('--uid', action='store_true',
                         help='When input file is a uid list.')
     parser.add_argument('-d', '--database', type=str, required=False, 
                         help='When uid is given or input is a str, --databse should ncbi entrez database,')
@@ -410,6 +410,8 @@ def main():
         state = download_acc(args,database)
     elif '/' not in infile and not os.path.isdir(infile):
         state = download_spe(args,args.database)
+    else:
+        state = -1
 
     while state == 75 and attempt < args.retries:
         attempt += 1
