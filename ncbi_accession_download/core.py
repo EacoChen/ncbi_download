@@ -130,12 +130,7 @@ def report_divide(_dict):
 
     logger.info('\nReporting the download sequence number in each database...')
     for k, v in _dict.items():
-        if 'Head' in v:
-            print(f'{k}: {len(v)-1}')
-            v.remove('Head')
-            _dict[k] = v
-        else:
-            print(f'{k}: {len(v)}')
+        print(f'{k}: {len(v)}')
     logger.info('End reporting, the file including uids are stored at output/tmp.\n')
 
 
@@ -192,7 +187,7 @@ def download_assem(_assem_uids, _output, _edl, args):
         logger.info('All download candidate have already exists.')
         return 0
     elif len(url_dict) < len(r_fetch*len(args.format.split(','))):
-        logger.info('Some files already exists. {len(url_dict)} url will be downloaded')
+        logger.info(f'Some files already exists. {len(url_dict)} url will be downloaded')
 
     logger.info('Some file will be filtered, if not exists in ncbi database.')
     download_jobs = []
@@ -333,9 +328,9 @@ def download_acc(args,database):
             logger.warning('merging to a new uid dictory')
             sorted_dict = merge_dict(sorted_dict,more_sorted)
         
-        for k,v in sorted_dict.items():
-            with open(f'{tmp}/uid_{k}.tsv', 'w') as f:
-                f.write('\n'.join(v))
+    for k,v in sorted_dict.items():
+        with open(f'{tmp}/uid_{k}.tsv', 'w') as f:
+            f.write('\n'.join(v))
     
     report_divide(sorted_dict)
 
