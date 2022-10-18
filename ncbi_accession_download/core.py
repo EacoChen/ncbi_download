@@ -52,18 +52,19 @@ def parseArgs():
                         help='The number of IDs to fetch per request')
     parser.add_argument('-P', '--progress-bar', dest='progress_bar', type=bool, required=False, default=True,
                         help='Enables a progress bar, requires tqdm package')
-    parser.add_argument('--uid', action='store_true',
-                        help='When input file is a uid list.')
     parser.add_argument('-d', '--database', type=str, required=False, 
                         help='When uid is given or input is a str, --databse should ncbi entrez database,')
     parser.add_argument('--retmax', type=int, required=False, default=0,
                         help='Searching mode max retrieving sequences, default=[batch*2], maxmium 100,000')
-    parser.add_argument('--dry', action='store_true',
-                        help='Download part not running, just find the uid.')
     parser.add_argument('-f', '--format', type=str, required=False, default='all', 
                         help='Genome download format, multi format sepearte with comma')
     parser.add_argument('--retries', type = int, required = False, default=3,
                         help='Retry download time, if download failed. Default: 3')
+    parser.add_argument('--dry', action='store_true',
+                        help='Download part not running, just find the uid.')
+    parser.add_argument('-u', action='store_true',
+                        help='When input file is a uid list.')
+    
 
     return parser.parse_args()
 
