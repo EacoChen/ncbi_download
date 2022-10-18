@@ -164,10 +164,10 @@ def download_assem(_assem_uids, _output, _edl, args):
 
     url_dict = {}
     for ftp_url in r_fetch:
-        gca_id = ftp_url.split('/')[-1][:15]
+        gca_id = ftp_url.split('/')[-1]
 
-        if not os.path.exists(f"{output}/{gca_id}"):
-            os.makedirs(f"{output}/{gca_id}")
+        if not os.path.exists(f"{output}/{gca_id[:15]}"):
+            os.makedirs(f"{output}/{gca_id[:15]}")
 
         if args.format == 'all':
             for fmt in _FORMATS:
