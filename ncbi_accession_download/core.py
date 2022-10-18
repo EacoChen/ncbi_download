@@ -16,6 +16,7 @@ import sys
 from collections import OrderedDict
 from ncbi_accession_download import EntrezDownloader
 from ncbi_accession_download import DownloadJob
+from collections import defaultdict
 
 
 _FORMATS = OrderedDict([
@@ -99,14 +100,13 @@ def get_uid(ids, _database, edl):
     logger = logging.getLogger('ncbi-accession-download')
     logger.info('Sorting the input accession number to diffenent database and changing it to uid...')
     
-    ids_dict = {}
+    ids_dict = defaultdict(list)
     for _db in _database:
         tqdm.write(_db)
         r_search, f_search = edl.esearch(_db, ids)
 
         # initialize container
         lost_ids = []
-        ids_dict[_db] = ['Head']
 
         for result in r_search:
             if type(result) == tuple:
@@ -120,7 +120,7 @@ def get_uid(ids, _database, edl):
 
         ids = lost_ids
 
-    ids_dict['lost'] = ['Head'] + lost_ids
+    ids_dict['lost'] = lost_ids
     return ids_dict
 
 

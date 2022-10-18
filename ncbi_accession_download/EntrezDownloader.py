@@ -355,7 +355,7 @@ class EntrezDownloader:
         for start in range(0, len(ids), batch_size):
             num = len(ids)-start
             num = batch_size if num > batch_size else num
-            f = executor.submit(self._general_batch,
+            f = executor.submit(self._esummary_batch,
                                 db=db,
                                 ids=ids[start:start+num],
                                 result_collector=results,
