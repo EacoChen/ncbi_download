@@ -130,9 +130,13 @@ def report_divide(_dict):
 
     logger.info('\nReporting the download sequence number in each database...')
     for k, v in _dict.items():
-        print(f'{k}: {len(v)-1}')
+        if 'Head' in v:
+            print(f'{k}: {len(v)-1}')
+            v.remove('Head')
+            _dict[k] = v
+        else:
+            print(f'{k}: {len(v)}')
     logger.info('End reporting, the file including uids are stored at output/tmp.\n')
-    _dict = {k:v.remove('Head') for k,v in _dict.items()}
 
 
 def download_genome(_uids, _output, _edl, args):
@@ -165,7 +169,7 @@ def download_assem(_assem_uids, _output, _edl, args):
 
     url_dict = {}
     for ftp_url in r_fetch:
-        gca_id = ftp_url.split('/')[-1]
+        gca_id = ftp_url.split('/')[-1][:15]
 
         if not os.path.exists(f"{output}/{gca_id}"):
             os.makedirs(f"{output}/{gca_id}")
@@ -305,10 +309,8 @@ def download_acc(args,database):
 
     infile, tmp, edl = config(args)
     
-    acc_ids = open(infile).read().split('\n')
     # delete the last empty line
-    if not acc_ids[-1]:
-        acc_ids = acc_ids[:-1]
+    acc_ids = open(infile).read().strip('\n').split('\n')
     
     if args.uid:
         if args.database in database:
