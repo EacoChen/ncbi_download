@@ -1,0 +1,3 @@
+[console_scripts]
+nad = ncbi_accession_download.core:main
+ncbi-acc-download = ncbi_accession_download.core:main

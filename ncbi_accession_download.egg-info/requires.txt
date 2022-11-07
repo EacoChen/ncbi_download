@@ -1,0 +1,4 @@
+requests>=2.24.0
+tqdm>=4.46.1
+biopython>=1.77
+beautifulsoup4>=4.9.1
